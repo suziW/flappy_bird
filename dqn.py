@@ -1,3 +1,9 @@
-from flappy import main
+import tensorflow as tf
+import numpy as np
+import time
 
-main()
+def train():
+    time.sleep(0.03)
+
+def evaluate():
+    pass

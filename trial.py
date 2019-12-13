@@ -1,4 +1,5 @@
 from collections import deque, namedtuple, defaultdict
+import numpy as np
 
 D = deque()
 D.append(1)
@@ -18,3 +19,6 @@ print(c)
 controller = defaultdict(lambda: None, istraining=True, queue=D)
 print(controller)
 print(controller['queue'])
+
+controller.update(newEpisode=True)
+print(controller)

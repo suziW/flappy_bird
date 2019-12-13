@@ -5,6 +5,9 @@ import sys
 import pygame
 from pygame.locals import *
 from collections import deque, namedtuple, defaultdict
+from dqn import train, evaluate
+import time
+import matplotlib.pyplot as plt
 
 
 controller = defaultdict(lambda: None, istraining=True, replayMemory=deque(), actionGenerator='hand', FPS=30)
@@ -130,6 +133,7 @@ def main():
             getHitmask(IMAGES['player'][2]),
         )
 
+        controller.update(newEpisode=True)
         movementInfo = showWelcomeAnimation()
         crashInfo = mainGame(movementInfo)
         showGameOverScreen(crashInfo)
@@ -234,6 +238,9 @@ def mainGame(movementInfo):
 
 
     while True:
+        reward = 0.1
+        terminal = False
+
         for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
@@ -255,31 +262,23 @@ def mainGame(movementInfo):
                     controller['FPS'] -= 1
                     print(controller)
 
-            if controller['actionGenerator'] == 'hand':
-                if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
-                    if playery > -2 * IMAGES['player'][0].get_height():
-                        playerVelY = playerFlapAcc
-                        playerFlapped = True
-                        SOUNDS['wing'].play()
-            elif controller['actionGenerator'] == 'ai':
-                pass
+            if controller['newEpisode']:
+                pass #do nothing
             else:
-                pass
+                if controller['actionGenerator'] == 'hand':
+                    if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
+                        if playery > -2 * IMAGES['player'][0].get_height():
+                            playerVelY = playerFlapAcc
+                            playerFlapped = True
+                            SOUNDS['wing'].play()
+                elif controller['actionGenerator'] == 'ai':
+                    pass
+                elif controller['actionGenerator'] == 'random':
+                    pass
 
         # check for crash here
         crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex},
                                upperPipes, lowerPipes)
-        if crashTest[0]:
-            return {
-                'y': playery,
-                'groundCrash': crashTest[1],
-                'basex': basex,
-                'upperPipes': upperPipes,
-                'lowerPipes': lowerPipes,
-                'score': score,
-                'playerVelY': playerVelY,
-                'playerRot': playerRot
-            }
 
         # check for score
         playerMidPos = playerx + IMAGES['player'][0].get_width() / 2
@@ -287,6 +286,7 @@ def mainGame(movementInfo):
             pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
+                reward = 1
                 SOUNDS['point'].play()
 
         # playerIndex basex change
@@ -346,7 +346,28 @@ def mainGame(movementInfo):
         playerSurface = pygame.transform.rotate(IMAGES['player'][playerIndex], visibleRot)
         SCREEN.blit(playerSurface, (playerx, playery))
 
+        image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         pygame.display.update()
+
+        if crashTest[0]:
+            terminate = True
+            reward = -1
+            return {
+                'y': playery,
+                'groundCrash': crashTest[1],
+                'basex': basex,
+                'upperPipes': upperPipes,
+                'lowerPipes': lowerPipes,
+                'score': score,
+                'playerVelY': playerVelY,
+                'playerRot': playerRot
+            }
+
+        if controller['newEpisode']:
+            image_data = pygame.surfarray.array3d(pygame.display.get_surface())
+            stacked_image = [image_data, image_data, image_data, image_data]
+        if controller['istraining']:
+            train()
         FPSCLOCK.tick(controller['FPS'])
 
 
