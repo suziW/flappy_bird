@@ -1,24 +1,24 @@
 from collections import deque, namedtuple, defaultdict
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.animation as animation
+import random
 
-D = deque()
-D.append(1)
-D.append(2)
-D.append(3)
-D.append([5, 4])
-controller = namedtuple('controller', ['istraining', 'queue'])
-print(D.popleft())
-print(controller)
 
-c = controller(istraining=True, queue=D)
-print(c)
-c.queue.pop()
-# c.istraining = False
-print(c)
+def a():
+    plt.axis()
+    plt.ion()
+    for i in range(100):
+        y = np.random.random()
+        plt.autoscale()
+        plt.plot(i, i, '.r')
+        plt.plot(i, y, '.b')
+        plt.pause(0.01)
+    plt.cla()
 
-controller = defaultdict(lambda: None, istraining=True, queue=D)
-print(controller)
-print(controller['queue'])
 
-controller.update(newEpisode=True)
-print(controller)
+a()
+a()

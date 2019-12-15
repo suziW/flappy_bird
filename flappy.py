@@ -5,19 +5,24 @@ import sys
 import pygame
 from pygame.locals import *
 from collections import deque, namedtuple, defaultdict
-from dqn import train, evaluate
+from dqn import train, evaluate, randomAction
 import time
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+from my_utils import stylePrint
 
 controller = defaultdict(
     lambda: None,
     istraining=True,
     replayMemory=deque(),
-    memoryFull=False,
+    replayMemorySize=10000,
     actionGenerator='hand',
-    FPS=30)
+    FPS=30,
+    epochLoss=[],
+    stepLoss=[],
+    steps=0,
+    plot=False)
 SCREENWIDTH = 288
 SCREENHEIGHT = 512
 PIPEGAPSIZE = 100  # gap between upper and lower part of pipe
@@ -34,29 +39,29 @@ PLAYERS_LIST = (
         'assets/sprites/redbird-downflap.png',
     ),
     # blue bird
-    (
-        'assets/sprites/bluebird-upflap.png',
-        'assets/sprites/bluebird-midflap.png',
-        'assets/sprites/bluebird-downflap.png',
-    ),
-    # yellow bird
-    (
-        'assets/sprites/yellowbird-upflap.png',
-        'assets/sprites/yellowbird-midflap.png',
-        'assets/sprites/yellowbird-downflap.png',
-    ),
+    # (
+    #     'assets/sprites/bluebird-upflap.png',
+    #     'assets/sprites/bluebird-midflap.png',
+    #     'assets/sprites/bluebird-downflap.png',
+    # ),
+    # # yellow bird
+    # (
+    #     'assets/sprites/yellowbird-upflap.png',
+    #     'assets/sprites/yellowbird-midflap.png',
+    #     'assets/sprites/yellowbird-downflap.png',
+    # ),
 )
 
 # list of backgrounds
 BACKGROUNDS_LIST = (
     'assets/sprites/background-day.png',
-    'assets/sprites/background-night.png',
+    # 'assets/sprites/background-night.png',
 )
 
 # list of pipes
 PIPES_LIST = (
     'assets/sprites/pipe-green.png',
-    'assets/sprites/pipe-red.png',
+    # 'assets/sprites/pipe-red.png',
 )
 
 try:
@@ -73,27 +78,23 @@ def main():
     pygame.display.set_caption('Flappy Bird')
 
     # numbers sprites for score display
-    IMAGES['numbers'] = (
-        pygame.image.load('assets/sprites/0.png').convert_alpha(),
-        pygame.image.load('assets/sprites/1.png').convert_alpha(),
-        pygame.image.load('assets/sprites/2.png').convert_alpha(),
-        pygame.image.load('assets/sprites/3.png').convert_alpha(),
-        pygame.image.load('assets/sprites/4.png').convert_alpha(),
-        pygame.image.load('assets/sprites/5.png').convert_alpha(),
-        pygame.image.load('assets/sprites/6.png').convert_alpha(),
-        pygame.image.load('assets/sprites/7.png').convert_alpha(),
-        pygame.image.load('assets/sprites/8.png').convert_alpha(),
-        pygame.image.load('assets/sprites/9.png').convert_alpha())
+    IMAGES['numbers'] = (pygame.image.load('assets/sprites/0.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/1.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/2.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/3.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/4.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/5.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/6.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/7.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/8.png').convert_alpha(),
+                         pygame.image.load('assets/sprites/9.png').convert_alpha())
 
     # game over sprite
-    IMAGES['gameover'] = pygame.image.load(
-        'assets/sprites/gameover.png').convert_alpha()
+    IMAGES['gameover'] = pygame.image.load('assets/sprites/gameover.png').convert_alpha()
     # message sprite for welcome screen
-    IMAGES['message'] = pygame.image.load(
-        'assets/sprites/message.png').convert_alpha()
+    IMAGES['message'] = pygame.image.load('assets/sprites/message.png').convert_alpha()
     # base (ground) sprite
-    IMAGES['base'] = pygame.image.load(
-        'assets/sprites/base.png').convert_alpha()
+    IMAGES['base'] = pygame.image.load('assets/sprites/base.png').convert_alpha()
 
     # sounds
     if 'win' in sys.platform:
@@ -107,11 +108,11 @@ def main():
     SOUNDS['swoosh'] = pygame.mixer.Sound('assets/audio/swoosh' + soundExt)
     SOUNDS['wing'] = pygame.mixer.Sound('assets/audio/wing' + soundExt)
 
+    num_episode = 1
     while True:
         # select random background sprites
         randBg = random.randint(0, len(BACKGROUNDS_LIST) - 1)
-        IMAGES['background'] = pygame.image.load(
-            BACKGROUNDS_LIST[randBg]).convert()
+        IMAGES['background'] = pygame.image.load(BACKGROUNDS_LIST[randBg]).convert()
 
         # select random player sprites
         randPlayer = random.randint(0, len(PLAYERS_LIST) - 1)
@@ -124,9 +125,7 @@ def main():
         # select random pipe sprites
         pipeindex = random.randint(0, len(PIPES_LIST) - 1)
         IMAGES['pipe'] = (
-            pygame.transform.flip(
-                pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha(), False,
-                True),
+            pygame.transform.flip(pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha(), False, True),
             pygame.image.load(PIPES_LIST[pipeindex]).convert_alpha(),
         )
 
@@ -144,10 +143,14 @@ def main():
         )
 
         controller.update(newEpisode=True)
-        print('open new epicode')
+        controller['epochLoss'].append(np.mean(controller['stepLoss']))
+        controller['stepLoss'] = []
+        print('open new epicode: ', num_episode, 'last epoch loss:', controller['epochLoss'][num_episode - 1], 'steps:',
+              controller['steps'])
         movementInfo = showWelcomeAnimation()
         crashInfo = mainGame(movementInfo)
         showGameOverScreen(crashInfo)
+        num_episode += 1
 
 
 def showWelcomeAnimation():
@@ -180,12 +183,10 @@ def showWelcomeAnimation():
                 'playerIndexGen': playerIndexGen,
             }
         for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYDOWN and
-                                      event.key == K_ESCAPE):
+            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
-            if event.type == KEYDOWN and (event.key == K_SPACE or
-                                          event.key == K_UP):
+            if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
                 # make first flap sound and return values for mainGame
                 SOUNDS['wing'].play()
                 return {
@@ -203,8 +204,7 @@ def showWelcomeAnimation():
 
         # draw sprites
         SCREEN.blit(IMAGES['background'], (0, 0))
-        SCREEN.blit(IMAGES['player'][playerIndex],
-                    (playerx, playery + playerShmVals['val']))
+        SCREEN.blit(IMAGES['player'][playerIndex], (playerx, playery + playerShmVals['val']))
         SCREEN.blit(IMAGES['message'], (messagex, messagey))
         SCREEN.blit(IMAGES['base'], (basex, BASEY))
 
@@ -261,14 +261,17 @@ def mainGame(movementInfo):
     playerFlapAcc = -9  # players speed on flapping
     playerFlapped = False  # True when player flaps
 
+    num_steps = 0
+    if controller['plot']:
+        plt.axis()
+        plt.ion()
     while True:
-        r_t = 0.1
+        num_steps += 1
+        r_t1 = 0.1
         a_t = 0
         terminate = False
-
         for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYDOWN and
-                                      event.key == K_ESCAPE):
+            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
             if event.type == KEYDOWN:
@@ -281,6 +284,8 @@ def mainGame(movementInfo):
                 elif event.unicode == 'r':
                     controller['actionGenerator'] = 'random'
                     print('mode:', controller['actionGenerator'])
+                elif event.unicode == 'p':
+                    controller['plot'] = not controller['plot']
                 elif event.key == K_RIGHT:
                     controller['FPS'] += 5
                     print('fps:', controller['FPS'])
@@ -294,9 +299,14 @@ def mainGame(movementInfo):
         if controller['newEpisode']:
             pass  #do nothing
         elif controller['actionGenerator'] == 'ai':
-            a_t = 1
+            a_t, (noflapProb, flapProb) = evaluate(controller, s_t)
+            if controller['plot']:
+                plt.autoscale()
+                plt.plot(num_steps, noflapProb, '.r')
+                plt.plot(num_steps, flapProb, '.b')
+                plt.pause(0.1)
         elif controller['actionGenerator'] == 'random':
-            a_t = 0
+            a_t = randomAction()
 
         if a_t and playery > -2 * IMAGES['player'][0].get_height():
             playerVelY = playerFlapAcc
@@ -305,15 +315,12 @@ def mainGame(movementInfo):
                 SOUNDS['wing'].play()
 
         # check for crash here
-        crashTest = checkCrash(
-            {
-                'x': playerx,
-                'y': playery,
-                'index': playerIndex
-            }, upperPipes, lowerPipes)
+        crashTest = checkCrash({'x': playerx, 'y': playery, 'index': playerIndex}, upperPipes, lowerPipes)
         if crashTest[0]:
             terminate = True
-            r_t = -1
+            r_t1 = -1
+            if crashTest[1]:
+                r_t1 = -5
 
         # check for score
         playerMidPos = playerx + IMAGES['player'][0].get_width() / 2
@@ -321,7 +328,7 @@ def mainGame(movementInfo):
             pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
             if pipeMidPos <= playerMidPos < pipeMidPos + 4:
                 score += 1
-                r_t = 1
+                r_t1 = 1
                 if not controller['istraining']:
                     SOUNDS['point'].play()
 
@@ -379,33 +386,42 @@ def mainGame(movementInfo):
         if playerRot <= playerRotThr:
             visibleRot = playerRot
 
-        playerSurface = pygame.transform.rotate(IMAGES['player'][playerIndex],
-                                                visibleRot)
+        playerSurface = pygame.transform.rotate(IMAGES['player'][playerIndex], visibleRot)
         SCREEN.blit(playerSurface, (playerx, playery))
 
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         image_data = image_data.transpose(1, 0, 2)[:404, ...]  #提取图像，截掉下面一部分
         image_data = cv2.resize(image_data, (80, 80))  # resize
-        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY)  #bgr2gray
+        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY) / 255  #bgr2gray
         if controller['newEpisode']:  #初始化s0
-            print('new epicode init')
-            s_t = np.stack((image_data, image_data, image_data, image_data),
-                           axis=2)
+            s_t = np.stack((image_data, image_data, image_data, image_data), axis=2)
             controller.update(newEpisode=False)
         else:
-            plt.imshow(image_data)
-            plt.show()
+            # plt.imshow(image_data)
+            # plt.show()
             image_data = np.reshape(image_data, (80, 80, 1))
             s_t1 = np.append(image_data, s_t[:, :, :3], axis=2)
-            controller['replayMemory'].append((s_t, a_t, r_t, s_t1, terminate))
+            a_t = np.zeros(2)
+            a_t[int(playerFlapped)] = 1
+            controller['replayMemory'].append((s_t, a_t, r_t1, s_t1, terminate))
             s_t = s_t1
+
+            if controller['replayMemoryFull']:
+                controller['replayMemory'].popleft()
+            if len(controller['replayMemory']) > controller['replayMemorySize']:
+                controller['replayMemoryFull'] = True
+                controller['replayMemory'].popleft()
+                stylePrint('replayMemory full: ', len(controller['replayMemory']), fore='red', back='yellow')
 
         pygame.display.update()
 
-        if controller['istraining']:
+        if controller['istraining'] and len(controller['replayMemory']) > 64:
+            controller['steps'] += 1
             train(controller)
+            pass
 
         if crashTest[0]:
+            plt.cla()
             return {
                 'y': playery,
                 'groundCrash': crashTest[1],
@@ -446,12 +462,10 @@ def showGameOverScreen(crashInfo):
                 return
 
         for event in pygame.event.get():
-            if event.type == QUIT or (event.type == KEYDOWN and
-                                      event.key == K_ESCAPE):
+            if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
-            if event.type == KEYDOWN and (event.key == K_SPACE or
-                                          event.key == K_UP):
+            if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
                 if playery + playerHeight >= BASEY - 1:
                     return
 
@@ -543,8 +557,7 @@ def checkCrash(player, upperPipes, lowerPipes):
         return [True, True]
     else:
 
-        playerRect = pygame.Rect(player['x'], player['y'], player['w'],
-                                 player['h'])
+        playerRect = pygame.Rect(player['x'], player['y'], player['w'], player['h'])
         pipeW = IMAGES['pipe'][0].get_width()
         pipeH = IMAGES['pipe'][0].get_height()
 
