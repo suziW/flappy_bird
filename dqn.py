@@ -12,6 +12,7 @@ gamma = 0.99
 initial_epsilon = 0.1
 final_epsilon = 0.0001
 explore = 1000000
+modelSaveStep = 1000
 
 # class Qnet(tf.keras.Model):
 #     """A simple linear model."""
@@ -105,7 +106,7 @@ def train(controller):
             q_target_batch[batch] = minibatch[batch][2] + gamma * np.max(act1_batch[batch])
     loss = train_step(q_target_batch, st_batch, at_batch)
     controller['stepLoss'].append(loss)
-    if (controller['steps'] + 1) % 1000 == 0:
+    if (controller['steps'] + 1) % modelSaveStep == 0:
         model.save_weights('./model/training_checkpoints')
         model_fix.load_weights('./model/training_checkpoints')
         stylePrint('fix model result: ', model_fix(np.ones([1, 80, 80, 4])), fore='red', back='yellow')
