@@ -54,7 +54,8 @@ PLAYERS_LIST = (
 
 # list of backgrounds
 BACKGROUNDS_LIST = (
-    'assets/sprites/background-day.png',
+    'assets/sprites/background-black.png',
+    # 'assets/sprites/background-day.png',
     # 'assets/sprites/background-night.png',
 )
 
@@ -227,11 +228,11 @@ def mainGame(movementInfo):
     # list of upper pipes
     upperPipes = [
         {
-            'x': SCREENWIDTH + 200,
+            'x': SCREENWIDTH,
             'y': newPipe1[0]['y']
         },
         {
-            'x': SCREENWIDTH + 200 + (SCREENWIDTH / 2),
+            'x': SCREENWIDTH + (SCREENWIDTH / 2),
             'y': newPipe2[0]['y']
         },
     ]
@@ -239,11 +240,11 @@ def mainGame(movementInfo):
     # list of lowerpipe
     lowerPipes = [
         {
-            'x': SCREENWIDTH + 200,
+            'x': SCREENWIDTH,
             'y': newPipe1[1]['y']
         },
         {
-            'x': SCREENWIDTH + 200 + (SCREENWIDTH / 2),
+            'x': SCREENWIDTH + (SCREENWIDTH / 2),
             'y': newPipe2[1]['y']
         },
     ]
@@ -251,7 +252,7 @@ def mainGame(movementInfo):
     pipeVelX = -4
 
     # player velocity, max velocity, downward accleration, accleration on flap
-    playerVelY = -9  # player's velocity along Y, default same as playerFlapped
+    playerVelY = 0  # player's velocity along Y, default same as playerFlapped
     playerMaxVelY = 10  # max vel along Y, max descend speed
     playerMinVelY = -8  # min vel along Y, max ascend speed
     playerAccY = 1  # players downward accleration
@@ -320,7 +321,7 @@ def mainGame(movementInfo):
             terminate = True
             r_t1 = -1
             if crashTest[1]:
-                r_t1 = -5
+                r_t1 = -2
 
         # check for score
         playerMidPos = playerx + IMAGES['player'][0].get_width() / 2
@@ -379,7 +380,7 @@ def mainGame(movementInfo):
 
         SCREEN.blit(IMAGES['base'], (basex, BASEY))
         # print score so player overlaps the score
-        showScore(score)
+        # showScore(score)
 
         # Player rotation has a threshold
         visibleRot = playerRotThr
@@ -390,21 +391,28 @@ def mainGame(movementInfo):
         SCREEN.blit(playerSurface, (playerx, playery))
 
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
-        image_data = image_data.transpose(1, 0, 2)[:404, ...]  #提取图像，截掉下面一部分
+        image_data = image_data.transpose(1, 0, 2)
         image_data = cv2.resize(image_data, (80, 80))  # resize
-        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY) / 255  #bgr2gray
+        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY)/255  #bgr2gray
+        # plt.figure()
+        # plt.imshow(image_data)
+        # _, image_data = cv2.threshold(image_data, 1, 255, cv2.THRESH_BINARY)
+
+        
         if controller['newEpisode']:  #初始化s0
             s_t = np.stack((image_data, image_data, image_data, image_data), axis=2)
             controller.update(newEpisode=False)
         else:
+            # plt.figure()
             # plt.imshow(image_data)
-            # plt.show()
             image_data = np.reshape(image_data, (80, 80, 1))
             s_t1 = np.append(image_data, s_t[:, :, :3], axis=2)
             a_t = np.zeros(2)
             a_t[int(playerFlapped)] = 1
             controller['replayMemory'].append((s_t, a_t, r_t1, s_t1, terminate))
             s_t = s_t1
+            # stylePrint(a_t, r_t1, fore='red', back='yellow')
+            # plt.show()
 
             if controller['replayMemoryFull']:
                 controller['replayMemory'].popleft()
