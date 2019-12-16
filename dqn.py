@@ -7,7 +7,7 @@ from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPool2D
 import os
 import random
 
-batch_size = 64
+batch_size = 32
 gamma = 0.99
 initial_epsilon = 0.1
 final_epsilon = 0.0001
@@ -58,6 +58,7 @@ def create_model():
 
 model = create_model()
 model_fix = create_model()
+model_fix.trainable=False
 model.summary()
 # model.load_weights('./model/training_checkpoints')
 # model_fix.load_weights('./model/training_checkpoints')

@@ -287,6 +287,7 @@ def mainGame(movementInfo):
                     print('mode:', controller['actionGenerator'])
                 elif event.unicode == 'p':
                     controller['plot'] = not controller['plot']
+                    print('plot:', controller['plot'])
                 elif event.key == K_RIGHT:
                     controller['FPS'] += 5
                     print('fps:', controller['FPS'])
@@ -431,6 +432,7 @@ def mainGame(movementInfo):
 
         if crashTest[0]:
             plt.cla()
+            plt.clf()
             return {
                 'y': playery,
                 'groundCrash': crashTest[1],
