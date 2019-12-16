@@ -14,12 +14,12 @@ from my_utils import stylePrint
 
 controller = defaultdict(
     lambda: None,
-    istraining=True,
+    istraining=False,
     replayMemory=deque(),
-    replayMemorySize=10000,
-    actionGenerator='hand',
+    replayMemorySize=30000,
+    actionGenerator='ai',
     FPS=30,
-    epochLoss=[],
+    episodeLoss=[],
     stepLoss=[],
     steps=0,
     plot=False)
@@ -144,10 +144,10 @@ def main():
         )
 
         controller.update(newEpisode=True)
-        controller['epochLoss'].append(np.mean(controller['stepLoss']))
+        controller['episodeLoss'].append(np.mean(controller['stepLoss']))
         controller['stepLoss'] = []
-        print('open new epicode: ', num_episode, 'last epoch loss:', controller['epochLoss'][num_episode - 1], 'steps:',
-              controller['steps'])
+        print('open new episode: ', num_episode, 'last epoch loss:', controller['episodeLoss'][num_episode - 1],
+              'steps:', controller['steps'])
         movementInfo = showWelcomeAnimation()
         crashInfo = mainGame(movementInfo)
         showGameOverScreen(crashInfo)
@@ -287,7 +287,9 @@ def mainGame(movementInfo):
                     print('mode:', controller['actionGenerator'])
                 elif event.unicode == 'p':
                     controller['plot'] = not controller['plot']
-                    print('plot:', controller['plot'])
+                elif event.unicode == 't':
+                    controller['istraining'] = not controller['istraining']
+                    print('istraining:', controller['istraining'])
                 elif event.key == K_RIGHT:
                     controller['FPS'] += 5
                     print('fps:', controller['FPS'])
@@ -304,8 +306,8 @@ def mainGame(movementInfo):
             action, (noflapProb, flapProb) = evaluate(controller, s_t)
             if controller['plot']:
                 plt.autoscale()
-                plt.plot(num_steps, noflapProb, '.r')
-                plt.plot(num_steps, flapProb, '.b')
+                plt.plot(num_steps, noflapProb, 'r_')
+                plt.plot(num_steps, flapProb, 'b.')
                 plt.pause(0.1)
         elif controller['actionGenerator'] == 'random':
             action = randomAction()
@@ -394,12 +396,11 @@ def mainGame(movementInfo):
         image_data = pygame.surfarray.array3d(pygame.display.get_surface())
         image_data = image_data.transpose(1, 0, 2)
         image_data = cv2.resize(image_data, (80, 80))  # resize
-        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY)/255  #bgr2gray
+        image_data = cv2.cvtColor(image_data, cv2.COLOR_RGB2GRAY) / 255  #bgr2gray
         # plt.figure()
         # plt.imshow(image_data)
         # _, image_data = cv2.threshold(image_data, 1, 255, cv2.THRESH_BINARY)
 
-        
         if controller['newEpisode']:  #初始化s0
             s_t = np.stack((image_data, image_data, image_data, image_data), axis=2)
             controller.update(newEpisode=False)
@@ -431,8 +432,9 @@ def mainGame(movementInfo):
             pass
 
         if crashTest[0]:
-            plt.cla()
-            plt.clf()
+            if controller['plot']:
+                plt.cla()
+                plt.clf()
             return {
                 'y': playery,
                 'groundCrash': crashTest[1],

@@ -14,11 +14,17 @@ def a():
     for i in range(100):
         y = np.random.random()
         plt.autoscale()
-        plt.plot(i, i, '.r')
-        plt.plot(i, y, '.b')
+        plt.plot(i, i, 'b_')
+        plt.plot(i, y, 'r.')
         plt.pause(0.01)
     plt.cla()
 
 
 a()
 a()
+
+# pygame.init()
+# pygame.display.set_mode((234, 345))
+# while True:
+#     for event in pygame.event.get():
+#         print(event)

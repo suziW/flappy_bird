@@ -1,2 +1,2 @@
-# flappy_bird
-auto play flappy_bird algorithm use DQN
+# this project trained a Deep Q NetWork to auto play flappy bird game
+

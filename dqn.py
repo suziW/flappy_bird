@@ -58,10 +58,10 @@ def create_model():
 
 model = create_model()
 model_fix = create_model()
-model_fix.trainable=False
+model_fix.trainable = False
 model.summary()
-# model.load_weights('./model/training_checkpoints')
-# model_fix.load_weights('./model/training_checkpoints')
+model.load_weights('./model/training_checkpoints')
+model_fix.load_weights('./model/training_checkpoints')
 
 optimizer = tf.keras.optimizers.Adam()
 loss_object = tf.keras.losses.MeanSquaredError()
@@ -119,15 +119,17 @@ def evaluate(controller, s_t):
         if controller['steps'] < explore:
             epsilon = initial_epsilon - controller['steps'] * (initial_epsilon - final_epsilon) / explore
         else:
-            epsilon = 0
+            epsilon = final_epsilon
 
         if random.random() <= epsilon:
             action = np.random.choice([0, 1])
-            stylePrint('random action: ', action, 'epsilon is :', epsilon, fore='red')
+            # stylePrint('random action: ', action, 'epsilon is :', epsilon, fore='red')
         else:
             action = np.argmax(action_)
-            if action:
-                stylePrint('action_:', action_, fore='red', back='yellow')
+            # if action:
+            #     stylePrint('action_:', action_, fore='red', back='yellow')
+    else:
+        action = np.argmax(action_)
     return action, action_
 
 
