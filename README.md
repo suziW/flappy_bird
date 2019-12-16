@@ -1,7 +1,7 @@
 # this project trained a Deep Q NetWork to auto play flappy bird game
 
 ## overview
-![][Screenshot.png] <br>
+<img src="./Screenshot.png" width="700"> <br>
 the right animation shows the value of different action(flap-blue, noflap-red) on each specific frame(state). for simplicity, the background of flaypy bird game is changed to a black pic. score is no show. bird color is set to red. pip color is set to green.
 ## dependencies
 >python==3.7.5 <br>
