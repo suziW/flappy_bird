@@ -269,7 +269,7 @@ def mainGame(movementInfo):
     while True:
         num_steps += 1
         r_t1 = 0.1
-        a_t = 0
+        action = 0
         terminate = False
         for event in pygame.event.get():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
@@ -295,21 +295,21 @@ def mainGame(movementInfo):
                     print('fps:', controller['FPS'])
 
             if controller['actionGenerator'] == 'hand':
-                a_t = int(event.type == KEYDOWN and event.key == K_UP)
+                action = int(event.type == KEYDOWN and event.key == K_UP)
 
         if controller['newEpisode']:
             pass  #do nothing
         elif controller['actionGenerator'] == 'ai':
-            a_t, (noflapProb, flapProb) = evaluate(controller, s_t)
+            action, (noflapProb, flapProb) = evaluate(controller, s_t)
             if controller['plot']:
                 plt.autoscale()
                 plt.plot(num_steps, noflapProb, '.r')
                 plt.plot(num_steps, flapProb, '.b')
                 plt.pause(0.1)
         elif controller['actionGenerator'] == 'random':
-            a_t = randomAction()
+            action = randomAction()
 
-        if a_t and playery > -2 * IMAGES['player'][0].get_height():
+        if action and playery > -2 * IMAGES['player'][0].get_height():
             playerVelY = playerFlapAcc
             playerFlapped = True
             if not controller['istraining']:
@@ -403,16 +403,17 @@ def mainGame(movementInfo):
             s_t = np.stack((image_data, image_data, image_data, image_data), axis=2)
             controller.update(newEpisode=False)
         else:
-            # plt.figure()
-            # plt.imshow(image_data)
             image_data = np.reshape(image_data, (80, 80, 1))
             s_t1 = np.append(image_data, s_t[:, :, :3], axis=2)
             a_t = np.zeros(2)
-            a_t[int(playerFlapped)] = 1
+            a_t[int(action)] = 1
             controller['replayMemory'].append((s_t, a_t, r_t1, s_t1, terminate))
             s_t = s_t1
-            # stylePrint(a_t, r_t1, fore='red', back='yellow')
-            # plt.show()
+            # if action:
+            #     plt.figure()
+            #     plt.imshow(image_data[..., 0])
+            #     stylePrint(a_t, r_t1, terminate, fore='red', back='yellow')
+            #     plt.show()
 
             if controller['replayMemoryFull']:
                 controller['replayMemory'].popleft()
